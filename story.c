@@ -44,8 +44,8 @@ int main(int argc, char * argv[]){
       read(fd, string, *data);
       printf("%s", string);
       close(fd);
-      shmdt(data);
       shmctl(shmid, IPC_RMID, NULL);
+      shmdt(data);
       semctl(semid, 0, IPC_RMID);
     }
     if(!strcmp(argv[1], "-v")){

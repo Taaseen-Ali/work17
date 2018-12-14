@@ -22,7 +22,8 @@ int main(){
   semid = semget(key, 1, 0644);
   printf("This was the last line added:\n");
 
-  lseek(fd, -1*(data[1]), SEEK_END);
+  lseek(fd, data[0]-data[1] , SEEK_SET);
+  printf("This was the last line added:\n");
   char * string;
   read(fd, string, data[1]);
   printf("%s\n", string);
