@@ -1,12 +1,13 @@
-#include <stdio.h>
 #include <stdlib.h>
-#include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/sem.h>
-#include <sys/shm.h>
-#include <fcntl.h>
+#include <stdio.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <string.h>
+#include <sys/shm.h>
+#include <sys/sem.h>
+#include <sys/ipc.h>
+#include <sys/types.h>
+#include <errno.h>
 
 union semun {
   int              val;    /* Value for SETVAL */
@@ -16,45 +17,51 @@ union semun {
 			      (Linux-specific) */
 };
 
+struct sembuf up = {.sem_num=0, .sem_op=1, .sem_flg=SEM_UNDO};
+struct sembuf down = {.sem_num=0, .sem_op=-1, .sem_flg=SEM_UNDO};
+
 int main(int argc, char * argv[]){
   key_t key;
   int shmid, semid, fd;
   int * data;
-  key = ftok("file", 'R');
-  struct sembuf up = {.sem_num=0, .sem_op=1, .sem_flg=SEM_UNDO};
-  struct sembuf down = {.sem_num=0, .sem_op=-1, .sem_flg=SEM_UNDO};
-  
-  if(argc > 1){
+  key = ftok(".", 'R');
+
+  if(argc>1){
     if(!strcmp(argv[1], "-c")){
-      printf("dddddd");
       shmid = shmget(key, 200, 0644 | IPC_CREAT);
       data = shmat(shmid, (void *)0, 0);
       data[0] = 0;
       data[1] = 0;
       semid  = semget(key, 1, 0644 | IPC_CREAT);
-      semctl(semid, 0, SETVAL, 1);
-      fd = open("story.txt", O_CREAT | O_TRUNC);
+      union semun semdata;
+      semdata.val=1;
+      semctl(semid, 0, SETVAL, semdata);
+      open("storyf", O_RDWR | O_CREAT | O_TRUNC, 0666);
     }
     if(!strcmp(argv[1], "-r")){
-      printf("rrrrrrr");
       semid  = semget(key, 1, 0644);
+      shmid = shmget(key, 200, 0644);
+      data = shmat(shmid, (void *)0, 0);
       semop(semid, &down, 1);
-      lseek(fd, 0, SEEK_SET);
-      char * string;
-      read(fd, string, *data);
-      printf("%s", string);
+      fd = open("storyf", O_RDWR);
+      char string[10000];
+      read(fd, string, 10000);
+      printf("%s\n", string);
       close(fd);
-      shmctl(shmid, IPC_RMID, NULL);
+      remove("storyf");
       shmdt(data);
-      semctl(semid, 0, IPC_RMID);
+      shmctl(shmid, IPC_RMID, NULL);
+      semctl(semid, 0, IPC_RMID, 0);
     }
     if(!strcmp(argv[1], "-v")){
-      lseek(fd, 0, SEEK_SET);
-      char * string;
-      read(fd, string, *data);
-      printf("%s", string);
+      fd = open("storyf", O_RDONLY);;
+      char string[10000];
+      read(fd, string, 10000);
+      printf("%s\n", string);
+      close(fd);
     }
   }
-}
+
       
 
+}
